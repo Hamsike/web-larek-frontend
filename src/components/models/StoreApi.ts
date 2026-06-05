@@ -1,5 +1,5 @@
-import { Api, ApiListResponse } from './base/api';
-import { IProductItem, ICheckoutData, IOrderResult } from '../types';
+import { Api, ApiListResponse } from '../base/api';
+import { IProductItem, ICheckoutData, IOrderResult } from '../../types';
 
 export class StoreApi extends Api {
   private imageBaseUrl: string;

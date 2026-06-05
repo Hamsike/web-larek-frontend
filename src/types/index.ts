@@ -32,6 +32,7 @@ export type ValidationErrors = Partial<Record<keyof ICheckoutData, string>>;
 
 export interface IOrderResult {
   id: string;
+  total?: number
 }
 
 export interface IFormState {

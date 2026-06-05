@@ -1,6 +1,6 @@
-import { BaseComponent } from './base/BaseComponent';
-import { EventEmitter } from './base/events';
-import { ensureElement, createElement } from '../utils/utils';
+import { BaseComponent } from '../base/BaseComponent';
+import { EventEmitter } from '../base/events';
+import { ensureElement, createElement } from '../../utils/utils';
 
 interface IBasketViewData {
   items: HTMLElement[];

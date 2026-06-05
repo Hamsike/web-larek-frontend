@@ -1,6 +1,6 @@
-import { BaseComponent } from './base/BaseComponent';
-import { EventEmitter } from './base/events';
-import { ensureElement } from '../utils/utils';
+import { BaseComponent } from '../base/BaseComponent';
+import { IEvents } from '../base/events';
+import { ensureElement } from '../../utils/utils';
 
 interface IModalData {
   content: HTMLElement;
@@ -10,7 +10,7 @@ export class ModalWindow extends BaseComponent<IModalData> {
   private closeButton: HTMLButtonElement;
   private contentContainer: HTMLElement;
 
-  constructor(container: HTMLElement, private events: EventEmitter) {
+  constructor(container: HTMLElement, private events: IEvents) {
     super(container);
     this.closeButton = ensureElement<HTMLButtonElement>('.modal__close', container);
     this.contentContainer = ensureElement<HTMLElement>('.modal__content', container);

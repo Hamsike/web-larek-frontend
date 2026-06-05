@@ -6,6 +6,8 @@
 - src/ — исходные файлы проекта
 - src/components/ — папка с JS компонентами
 - src/components/base/ — папка с базовым кодом
+- src/components/view/ — папка с компонентами представления
+- src/components/models/ — папка с моделями данных
 
 Важные файлы:
 - src/pages/index.html — HTML-файл главной страницы
@@ -40,6 +42,8 @@ npm run build
 ```
 yarn build
 ```
+
+
 ## Архитектура приложения
 
 ### Подход разработки
@@ -51,10 +55,10 @@ yarn build
 #### Класс `BaseComponent<T>`
 Абстрактный класс-дженерик, обобщающий конструктор и основные методы работы с компонентами отображения.
 
-**Конструктор:**
+**Конструктор:** 
 - принимает на вход `container` типа `HTMLElement`
 
-**Методы:**
+**Методы:** 
 - `toggleClass(element, className, force?)` — переключает класс элемента
 - `setDisabled(element, state)` — блокирует/разблокирует кнопку
 - `setText(element, value)` — устанавливает текстовое содержимое элемента
@@ -62,7 +66,7 @@ yarn build
 - `render(data?)` — сливает переданные данные с текущим объектом и возвращает контейнер
 
 #### Класс `EventEmitter`
-Брокер событий, обеспечивающий работу событий. Функциональность стандартная: установка/снятие слушателей, вызов слушателей при возникновении события.
+Брокер событий, обеспечивающий работу событий.
 
 **Методы:**
 - `on(eventName, callback)` — установить обработчик на событие
@@ -73,7 +77,7 @@ yarn build
 - `trigger(eventName, context?)` — сделать коллбек, генерирующий событие при вызове
 
 #### Класс `Api`
-Базовый класс для работы с HTTP-запросами. Хранит базовый URL и опции запроса.
+Базовый класс для работы с HTTP-запросами.
 
 **Конструктор:**
 - принимает `baseUrl: string` и опциональные `options: RequestInit`
@@ -86,7 +90,6 @@ yarn build
 ### Компоненты модели данных (Model)
 
 #### Класс `StoreApi` (наследует `Api`)
-Основной класс работы с сетью в проекте.
 
 **Конструктор:**
 - принимает `cdn: string`, `baseUrl: string`, опциональные `options: RequestInit`
@@ -94,17 +97,21 @@ yarn build
 - сохраняет `cdn` во внутреннее поле `imageBaseUrl`
 
 **Поля:**
-- `imageBaseUrl` — хранит URL для формирования полного пути к изображениям
+- `imageBaseUrl: string` — хранит URL для формирования полного пути к изображениям
 
 **Методы:**
-- `fetchProducts()` — GET-запрос на `/product`, возвращает список товаров (`IProductItem[]`)
-- `submitOrder(order)` — POST-запрос на `/order` с данными заказа, возвращает результат (`IOrderResult`)
-- `getImageUrl(imagePath)` — возвращает полный URL изображения (склеивает `imageBaseUrl` и `imagePath`)
+- `fetchProducts(): Promise<IProductItem[]>` — GET-запрос на `/product`, возвращает список товаров
+- `submitOrder(order: ICheckoutData): Promise<IOrderResult>` — POST-запрос на `/order` с данными заказа
+- `getImageUrl(imagePath: string): string` — возвращает полный URL изображения
 
 #### Класс `ShopModel`
+Центральная модель данных приложения. Не наследует базовых классов, работает напрямую с `EventEmitter`.
 
-Является центральной моделью данных приложения. Содержит все основные группы данных страницы и методы работы с ними.  
-(Не наследует базовых классов, работает напрямую с `EventEmitter`.)
+**Конструктор:**
+
+- принимает events: IEvents
+
+- инициализирует все поля начальными значениями
 
 **Интерфейсы:**
 ```ts
@@ -116,28 +123,38 @@ interface ICheckoutData {
   total?: number;
   items: string[];
 }
+
+type ValidationErrors = Partial<Record<keyof ICheckoutData, string>>;
 ```
-**Поля**
+**Поля:**
 - products: IProductItem[] — список товаров, полученных с сервера
+
 - activeProductId: string — идентификатор товара, открытого в превью
+
 - basketItems: IProductItem[] — товары, добавленные в корзину (полные объекты)
+
 - checkoutData: ICheckoutData — данные заказа: адрес, способ оплаты, контакты, сумма, список id товаров
+
 - fieldErrors: ValidationErrors — объект текущих ошибок валидации
 
-**Методы**
-- resetBasket() — очищает basketItems и checkoutData.items, генерирует событие basket:updated
+**Методы:**
+- resetBasket(): void — очищает basketItems и checkoutData.items, генерирует basket:updated
 
-- addToCheckout(item) — добавляет id товара в checkoutData.items
+- resetOrderData(): void — очищает все поля checkoutData (address, payment, email, phone, total), вызывает валидацию
 
-- removeFromCheckout(item) — удаляет id товара из checkoutData.items
+- addToCheckout(item: IProductItem): void — добавляет id товара в checkoutData.items
 
-- updateProductList(items) — сохраняет каталог, генерирует products:loaded
+- removeFromCheckout(item: IProductItem): void — удаляет id товара из checkoutData.items
 
-- setActiveProduct(item) — сохраняет activeProductId, генерирует activeProduct:changed
+- updateProductList(items: IProductItem[]): void — сохраняет каталог, генерирует products:loaded
 
-- addToBasket(item) — добавляет товар в basketItems, генерирует basket:updated
+- setActiveProduct(item: IProductItem): void — сохраняет activeProductId, генерирует activeProduct:changed
 
-- removeFromBasket(item) — удаляет товар из basketItems, генерирует basket:updated
+- canAddToBasket(id: string): boolean — возвращает true, если товара ещё нет в корзине
+
+- addToBasket(item: IProductItem): void — добавляет товар в basketItems, генерирует basket:updated
+
+- removeFromBasket(item: IProductItem): void — удаляет товар из basketItems, генерирует basket:updated
 
 - isBasketEmpty(): boolean — возвращает true, если корзина пуста
 
@@ -145,93 +162,143 @@ interface ICheckoutData {
 
 - calculateTotal(): number — вычисляет общую стоимость заказа на основе checkoutData.items и products
 
-- updateCheckoutField(field, value) — обновляет поле в checkoutData (валидные поля: payment, address, phone, email, total), затем вызывает validateCheckoutForm()
+- updateCheckoutField(field: string, value: string): void — обновляет поле в checkoutData (валидные поля: payment, address, phone, email, total), затем вызывает validateCheckoutForm()
 
-- updateContactField(field, value) — обновляет поля email/phone, затем вызывает validateContactForm()
+- updateContactField(field: string, value: string): void — обновляет поля email/phone, затем вызывает validateContactForm()
 
 - validateCheckoutForm(): boolean — проверяет address и payment, заполняет fieldErrors, генерирует validation:updated, возвращает true если ошибок нет
 
-- validateContactForm(): boolean — проверяет email и phone, аналогично генерирует validation:updated
+- validateContactForm(): boolean — проверяет email и phone, генерирует validation:updated
 
 ### Компоненты представления (View)
 
-#### Класс `ProductCard`
+#### Класс `Card<T extends ICardData>` (наследует `BaseComponent<T>`)
 
-Отвечает за отображение карточки товара в каталоге или в режиме превью.
-
-Расширяет `BaseComponent<T>` по интерфейсу `IProductCardData`
-```ts 
-interface IProductCardData {
+**Интерфейс:**
+```ts
+interface ICardData {
   title: string;
-  category: string;
-  image: string;
   price: number | null;
-  description?: string;
 }
 ```
 
-**Конструктор**
-- принимает container: HTMLElement, опциональный объект actions (поля onClick и onButtonClick) и флаг withDescription: boolean
+**Конструктор:**
+- принимает container: HTMLElement
 
-- сохраняет в поля элементы .card__title, .card__category, .card__image, .card__price
+- передаёт container в родительский конструктор через super()
 
-- если withDescription === true, дополнительно сохраняет .card__text и .card__button, и вешает onButtonClick на кнопку
+- сохраняет в поля элементы .card__title и .card__price
 
-- если передан actions.onClick, вешает его на весь container
+**Поля:**
 
-**Поля**
+- _titleElement: HTMLElement — элемент заголовка
 
-- _title, _category, _image, _price — элементы разметки
+- _priceElement: HTMLElement — элемент цены
 
-- _description, _actionButton — опциональные элементы для превью
+**Методы:**
 
-**Методы**
-- set title(value) — устанавливает заголовок
+- set title(value: string) — устанавливает заголовок
 
-- set category(value) — устанавливает текст категории и динамический CSS-класс (на основе словаря categoryStyles)
+- set price(value: number | null) — устанавливает цену (если null — «Бесценно», иначе — «X синапсов»)
 
-- set image(value) — устанавливает изображение
+#### Класс `CardGallery<T extends ICardGalleryData>` (наследует `Card<T>`)
 
-- set price(value) — отображает цену с суффиксом «синапсов» или «Бесценно»
-
-- set description(value) — устанавливает описание (для превью)
-
-#### Класс `BasketItem`
-Отвечает за отображение одной строки товара в корзине.
-
-Расширяет `BaseComponent<T>` по интерфейсу `IBasketItemData`.
-
+**Интерфейс:**
 ```ts
-interface IBasketItemData {
-  title: string;
-  price: number | null;
+interface ICardGalleryData extends ICardData {
+  image: string;
+  category: string;
+}
+```
+
+**Конструктор:**
+
+- принимает container: HTMLElement и опциональный action: ICardGalleryAction
+
+- передаёт container в родительский конструктор через super()
+
+- сохраняет в поля элементы .card__category и .card__image
+
+- если передан action.onClick, вешает его на container
+
+**Поля:**
+
+- _categoryElement: HTMLElement — элемент категории
+
+- _imageElement: HTMLImageElement — элемент изображения
+
+- _categoryColor: Record<string, string> — словарь для CSS-классов категорий
+
+**Методы:**
+
+- set image(value: string) — устанавливает изображение
+
+- set category(value: string) — устанавливает текст категории и динамический CSS-класс
+
+#### Класс `CardPreview` (наследует `Card<ICardPreviewData>`)
+
+**Интерфейс:**
+```ts
+interface ICardPreviewData extends ICardGalleryData {
+  description?: string;
+  isCanAdd: boolean;
+}
+```
+
+**Конструктор:**
+
+- принимает container: HTMLElement и опциональный actions: ICardPreviewButtonAction
+
+- передаёт container в родительский конструктор через super()
+
+- сохраняет в поля элементы .card__button и .card__text
+
+- если передан actions.onButtonClick, вешает его на кнопку
+
+**Поля:**
+
+- _descriptionElement: HTMLElement — элемент описания
+
+- _actionButton: HTMLElement | null — кнопка добавления в корзину
+
+**Методы:**
+
+- set description(value: string) — устанавливает описание
+
+- set isCanAdd(value: boolean) — блокирует/разблокирует кнопку
+
+#### Класс `CardBasket` (наследует `Card<ICardBasketData>`)
+
+**Интерфейс:**
+```ts
+interface ICardBasketData extends ICardData {
   index: number;
 }
 ```
 
-**Конструктор**
-- принимает container: HTMLElement и опциональный объект actions с полем onRemove
+**Конструктор:**
 
-- сохраняет в поля элементы .card__title, .card__price, .basket__item-index, .card__button
+- принимает container: HTMLElement и опциональный actions: ICardBasketButtonAction
+
+- передаёт container в родительский конструктор через super()
+
+- сохраняет в поля элементы .basket__item-index и .card__button
 
 - если передан actions.onRemove, вешает его на кнопку удаления
 
-**Поля**
-- _title, _price, _index, _button — элементы разметки
+**Поля:**
 
-**Методы**
-- set index(value) — устанавливает порядковый номер
+- _indexElement: HTMLElement — элемент порядкового номера
 
-- set title(value) — устанавливает название товара
+- _removeButton: HTMLElement | null — кнопка удаления
 
-- set price(value) — отображает цену
+**Методы:**
 
-#### Класс `BasketView`
+- set index(value: number) — устанавливает порядковый номер
 
-Отвечает за отображение всей корзины (список товаров, общая сумма, кнопка оформления).
+#### Класс `BasketView` (наследует `BaseComponent<IBasketViewData>`)
 
-Расширяет `BaseComponent<T>` по интерфейсу `IBasketViewData`.
-
+**Интерфейс:**
 ```ts
 interface IBasketViewData {
   items: HTMLElement[];
@@ -239,195 +306,246 @@ interface IBasketViewData {
 }
 ```
 
-**Конструктор**
-- принимает container: HTMLElement и объект events: EventEmitter
+**Конструктор:**
+
+- принимает container: HTMLElement и events: EventEmitter
+
+- передаёт container в родительский конструктор через super()
 
 - сохраняет в поля элементы .basket__list, .basket__price, .basket__button
 
-- вешает на кнопку обработчик, генерирующий событие checkout:start
+- вешает на кнопку оформления обработчик, генерирующий checkout:start
 
-**Поля**
-- _list — контейнер для списка товаров
+**Поля:**
 
-- _total — элемент общей суммы
+- itemsContainer: HTMLElement — контейнер для списка товаров
 
-- _checkoutButton — кнопка «Оформить»
+- totalElement: HTMLElement | null — элемент общей суммы
 
-**Методы**
+- checkoutButton: HTMLElement | null — кнопка оформления
 
-- set items(items) — заменяет содержимое списка; если массив пуст, выводит сообщение «Корзина пуста»
+**Методы:**
 
-- set total(total) — устанавливает текст суммы (добавляет «синапсов»)
+- set items(items: HTMLElement[]) — заменяет содержимое списка (если пусто — выводит «Корзина пуста»)
 
-- setButtonState(isDisabled) — блокирует/разблокирует кнопку оформления
+- set total(total: number) — устанавливает текст суммы
 
-#### Класс `PageLayout`
-Управляет глобальными элементами страницы: галерея товаров, счётчик корзины, блокировка прокрутки.
+- setButtonState(isDisabled: boolean): void — блокирует/разблокирует кнопку оформления
 
-Расширяет `BaseComponent<T>` по интерфейсу `IPageData`.
+#### Класс `Form<T extends IFormData>` (наследует `BaseComponent<T>`)
 
+**Интерфейс:**
+```ts
+interface IFormData {
+  valid: boolean;
+  errors: string;
+}
+```
+
+**Конструктор:**
+
+- принимает formContainer: HTMLFormElement и events: IEvents
+
+- передаёт formContainer в родительский конструктор через super()
+
+- получает formName из атрибута name формы
+
+- сохраняет в поля кнопку сабмита и контейнер ошибок
+
+- на событие input генерирует ${formName}:change с полем и значением
+
+- на событие submit генерирует ${formName}:submit
+
+**Поля:**
+
+- formName: string | null — имя формы (из атрибута name)
+
+- _submitButton: HTMLButtonElement — кнопка отправки
+
+- _errorContainer: HTMLElement — контейнер для ошибок
+
+**Методы:**
+
+- set valid(value: boolean) — блокирует/разблокирует кнопку отправки
+
+- set errors(value: string) — устанавливает текст ошибок
+
+#### Класс `FormOrder` (наследует `Form<IFormOrderData>`)
+
+**Интерфейс:**
+```ts
+interface IFormOrderData extends IFormData {
+  address: string;
+  payment: string;
+}
+```
+
+**Конструктор:**
+
+- принимает formContainer: HTMLFormElement и events: IEvents
+
+- вызывает родительский конструктор через super()
+
+- сохраняет в поле кнопки выбора оплаты (.button_alt)
+
+- на каждую кнопку оплаты вешает клик: устанавливает payment и генерирует payment:selected
+
+**Поля:**
+
+- _paymentButtons: HTMLButtonElement[] — кнопки выбора способа оплаты
+
+**Методы:**
+
+- set address(value: string) — устанавливает значение поля адреса
+
+- set payment(value: string) — переключает активный класс на кнопках оплаты
+
+##### Класс `FormContacts` (наследует `Form<IFormContactsData>`)
+
+**Интерфейс:**
+```ts
+interface IFormContactsData extends IFormData {
+  phone: string;
+  email: string;
+}
+```
+
+**Конструктор:**
+
+- принимает formContainer: HTMLFormElement и events: IEvents
+
+- вызывает родительский конструктор через super()
+
+- (своих полей не добавляет)
+
+**Методы:**
+
+- set phone(value: string) — устанавливает значение поля телефона
+
+- set email(value: string) — устанавливает значение поля email
+
+#### Класс `PageLayout` (наследует `BaseComponent<IPageData>`)
+
+**Интерфейс:**
 ```ts
 interface IPageData {
   catalog: HTMLElement[];
 }
 ```
 
-**Конструктор**
-- принимает container: HTMLElement и объект events: EventEmitter
+**Конструктор:**
+
+- принимает container: HTMLElement и events: IEvents
+
+- передаёт container в родительский конструктор через super()
 
 - сохраняет в поля элементы .header__basket-counter, .gallery, .page__wrapper, .header__basket
 
-- вешает на кнопку корзины обработчик, генерирующий событие basket:open
+- вешает на кнопку корзины обработчик, генерирующий basket:open
 
-**Поля**
+**Поля:**
 
-- _counter — счётчик товаров в корзине
+- cartCounter: HTMLElement — счётчик товаров в корзине
 
-- _catalog — контейнер галереи
+- catalogContainer: HTMLElement — контейнер галереи
 
-- _wrapper — обёртка страницы (для блокировки скролла)
+- pageWrapper: HTMLElement — обёртка страницы
 
-- _basket — кнопка корзины
+- cartButton: HTMLElement — кнопка корзины
 
-**Методы**
+**Методы:**
 
-- set counter(value) — устанавливает число в счётчике
+- set counter(value: number) — устанавливает число в счётчике
 
-- set catalog(items) — заменяет содержимое галереи
+- set catalog(items: HTMLElement[]) — заменяет содержимое галереи
 
-- set locked(value) — добавляет/убирает класс page__wrapper_locked, блокирующий прокрутку
+- set locked(value: boolean) — добавляет/убирает класс page__wrapper_locked, блокирующий прокрутку
 
-#### Класс `ModalWindow`
+#### Класс `ModalWindow` (наследует `BaseComponent<IModalData>`)
 
-Отвечает за отображение модального окна. Служит контейнером для любого контента.
-
-Расширяет `BaseComponent<T>` по интерфейсу `IModalData`.
-
+**Интерфейс:** 
 ```ts
 interface IModalData {
   content: HTMLElement;
 }
 ```
 
-**Конструктор**
+**Конструктор:**
 
-- принимает container: HTMLElement и объект events: EventEmitter
+- принимает container: HTMLElement и events: IEvents
 
-- сохраняет в поля .modal__close и .modal__content
+- передаёт container в родительский конструктор через super()
 
-- вешает обработчики: на крестик и фон — закрытие (hide()), на контент — остановка всплытия
+- сохраняет в поля элементы .modal__close и .modal__content
 
-**Поля**
+- вешает на крестик и фон закрытие (hide()), на контент — остановку всплытия
 
-- _closeButton — кнопка закрытия
+**Поля:**
 
-- _contentContainer — контейнер для динамического контента
+- closeButton: HTMLButtonElement — кнопка закрытия
 
-**Методы**
+- contentContainer: HTMLElement — контейнер для контента
 
-- set content(value) — заменяет содержимое контейнера на переданный элемент
+**Методы:**
 
-- show() — добавляет класс modal_active, генерирует событие modal:open
+- set content(value: HTMLElement) — заменяет содержимое контейнера
 
-- hide() — удаляет класс modal_active, очищает innerHTML контейнера, генерирует modal:close
+- show(): void — добавляет класс modal_active, генерирует modal:open
 
-- render(data) — вызывает родительский render, затем show(), возвращает контейнер
+- hide(): void — удаляет класс modal_active, очищает контейнер, генерирует modal:close
 
-#### Класс `CheckoutForm`
+- render(data: IModalData): HTMLElement — вызывает render родителя, затем show(), возвращает контейнер
 
-Универсальная форма для первого шага заказа (адрес + способ оплаты) и для контактов (email + телефон).
+#### Класс `SuccessView` (наследует `BaseComponent<ISuccessData>`)
 
-Расширяет `BaseComponent<T>` по интерфейсу `IFormState`.
-
-```ts
-export interface IFormState {
-  valid: boolean;
-  errors: string[];
-}
-```
-
-**Конструктор**
-- принимает formContainer: HTMLFormElement, events: EventEmitter, formName: string (например, 'order' или 'contacts')
-
-- сохраняет кнопку сабмита, контейнер ошибок, кнопки выбора оплаты (.button_alt)
-
-- на каждую кнопку оплаты вешает клик: вызывает setPaymentMethod, генерирует payment:selected
-
-- на событие input генерирует событие ${formName}:change (с полем и значением)
-
-- на submit вызывает preventDefault и генерирует ${formName}:submit
-
-**Поля**
-- _submit, _errorContainer, _paymentButtons — элементы формы
-
-- _formName — имя формы (используется в именах событий)
-
-**Методы**
-
-- setPaymentMethod(method) — переключает активный класс на кнопках оплаты
-
-- set valid(value) — блокирует/разблокирует кнопку сабмита
-
-- set errors(value) — устанавливает текст ошибок
-
-- set address(value) — устанавливает значение поля address
-
-- set phone(value) — устанавливает значение поля phone
-
-- set email(value) — устанавливает значение поля email
-
-- resetForm() — очищает все поля ввода, сбрасывает активные кнопки оплаты, сбрасывает valid и errors
-
-#### Класс `SuccessView`
-
-Отображает сообщение об успешном оформлении заказа.
-
-Расширяет `BaseComponent<T>` по интерфейсу `ISuccessData`.
-
+**Интерфейс:**
 ```ts
 interface ISuccessData {
   total: number;
 }
 ```
 
-**Конструктор**
-- принимает container: HTMLElement и объект actions: { onClick }
+**Конструктор:**
 
-- сохраняет элементы .order-success__close и .order-success__description
+- принимает container: HTMLElement и actions: { onClick: () => void }
+
+- передаёт container в родительский конструктор через super()
+
+- сохраняет в поля элементы .order-success__close и .order-success__description
 
 - вешает actions.onClick на кнопку закрытия
 
-**Поля**
-- _total — элемент для отображения списанной суммы
+**Поля:**
 
-- _close — кнопка закрытия
+- totalDisplay: HTMLElement — элемент для отображения суммы
 
-**Методы**
-- set total(value) — устанавливает текст «Списано X синапсов»
+- closeButton: HTMLElement — кнопка закрытия
 
-### Событийная логика `(index.ts)`
+**Методы:**
 
-В `index.ts` создаются экземпляры всех компонентов и настраиваются обработчики событий. 
+- set total(value: number) — устанавливает текст «Списано X синапсов»
 
-**Основные потоки**
-- Загрузка товаров → api.fetchProducts() → updateProductList() → событие products:loaded → отрисовка каталога через PageLayout.catalog.
+### Событийная логика (`index.ts`)
+**Основные потоки:**
 
-- Выбор карточки → card:select → setActiveProduct() → activeProduct:changed → открытие модального окна с ProductCard в режиме превью, на кнопку «В корзину» вешается card:add.
+- Загрузка товаров → api.fetchProducts() → updateProductList() → products:loaded → создание CardGallery → отрисовка каталога
 
-- Добавление в корзину → card:add → addToCheckout() и addToBasket() → обновление счётчика → закрытие модалки.
+- Выбор карточки → card:select → setActiveProduct() → activeProduct:changed → открытие CardPreview в модалке, проверка canAddToBasket
 
-- Открытие корзины → basket:open → получение данных из модели, создание BasketItem для каждого товара, отображение BasketView в модалке.
+- Добавление в корзину → card:add → addToBasket() и addToCheckout() → basket:updated → обновление счётчика и корзины
 
-- Удаление из корзины → card:remove → removeFromBasket() и removeFromCheckout() → перерисовка корзины.
+- Открытие корзины → basket:open → basket:updated → отображение BasketView в модалке
 
-- Начало оформления → checkout:start → сброс данных в модели (address, payment), вызов orderForm.resetForm(), отображение формы заказа в модалке.
+- Удаление из корзины → card:remove → removeFromBasket() и removeFromCheckout() → basket:updated
 
-- Валидация → при любом изменении полей генерируются события order:change или contacts:change → вызываются методы модели updateCheckoutField / updateContactField → выполняются validateCheckoutForm / validateContactForm → генерируется validation:updated, который управляет активностью кнопки и выводит ошибки.
+- Начало оформления → checkout:start → resetOrderData() → отображение FormOrder в модалке
 
-- Выбор способа оплаты → payment:selected → сохраняется payment в модели.
+- Валидация → изменение полей → order:change / contacts:change → updateCheckoutField() / updateContactField() → validateCheckoutForm() / validateContactForm() → validation:updated → управление активностью кнопки
 
-- Отправка формы заказа → order:submit → устанавливается checkoutData.total, сбрасываются поля контактов в модели, вызывается contactsForm.resetForm(), отображается форма контактов.
+- Выбор оплаты → payment:selected → сохранение payment в модели → validateCheckoutForm()
 
-- Отправка контактов → contacts:submit → отправка заказа через api.submitOrder(). При успехе показывается SuccessView. При закрытии модалки успеха (любым способом) вызывается resetBasket(), сбрасывается счётчик корзины.
+- Отправка заказа → order:submit → установка total → отображение FormContacts
 
-- Блокировка скролла → события modal:open / modal:close управляют свойством locked страницы.
+- Отправка контактов → contacts:submit → api.submitOrder() → отображение SuccessView → сброс корзины при закрытии
+
+- Блокировка скролла → modal:open / modal:close → управление page.locked

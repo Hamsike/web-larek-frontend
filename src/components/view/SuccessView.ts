@@ -1,5 +1,5 @@
-import { BaseComponent } from './base/BaseComponent';
-import { ensureElement } from '../utils/utils';
+import { BaseComponent } from '../base/BaseComponent';
+import { ensureElement } from '../../utils/utils';
 
 interface ISuccessData {
   total: number;

@@ -5,7 +5,7 @@ export abstract class BaseComponent<T> {
     element.classList.toggle(className, force);
   }
 
-  setDisabled(element: HTMLElement, state: boolean) {
+  setDisabled(element: HTMLElement | null, state: boolean) {
     if (element) {
       if (state) element.setAttribute('disabled', 'disabled');
       else element.removeAttribute('disabled');

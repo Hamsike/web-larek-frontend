@@ -1,6 +1,6 @@
-import { BaseComponent } from './base/BaseComponent';
-import { EventEmitter } from './base/events';
-import { ensureElement } from '../utils/utils';
+import { BaseComponent } from '../base/BaseComponent';
+import {IEvents } from '../base/events';
+import { ensureElement } from '../../utils/utils';
 
 interface IPageData {
   catalog: HTMLElement[];
@@ -12,7 +12,7 @@ export class PageLayout extends BaseComponent<IPageData> {
   private pageWrapper: HTMLElement;
   private cartButton: HTMLElement;
 
-  constructor(container: HTMLElement, private events: EventEmitter) {
+  constructor(container: HTMLElement, private events: IEvents) {
     super(container);
     this.cartCounter = ensureElement('.header__basket-counter');
     this.catalogContainer = ensureElement('.gallery');
