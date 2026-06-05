@@ -83,7 +83,7 @@ events.on('activeProduct:changed', (item: IProductItem) => {
       description: item.description,
       price: item.price,
       category: item.category,
-      isCanAdd: appData.canAddToBasket(item.id)
+      isCanAdd: appData.canAddToBasket(item.id) && !!item.price
     })
   });
 });
@@ -155,10 +155,10 @@ events.on('checkout:start', () => {
 events.on('contacts:submit', () => {
   api.submitOrder(appData.checkoutData)
     .then((result) => {
+      appData.resetBasket()
       const success = new SuccessView(cloneTemplate(templates.success), {
         onClick: () => {
           modal.hide();
-          appData.resetBasket();
         }
       });
     
