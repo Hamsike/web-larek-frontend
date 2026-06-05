@@ -37,6 +37,7 @@ export class CardGallery<T extends ICardGalleryData> extends Card<T> {
   }
 
   set category(value: string) {
+    this.setText(this._categoryElement, value)
     this._categoryElement.className = `card__category card__category_${this._categoryColor[value]}`
   }
 }

@@ -1,6 +1,5 @@
 import { ensureElement } from "../../utils/utils";
-import { Card} from "../common/Card";
-import { ICardGalleryData } from "./CardGallery";
+import { CardGallery, ICardGalleryData } from "./CardGallery";
 
 interface ICardPreviewData extends ICardGalleryData{
   description?: string;
@@ -11,7 +10,7 @@ interface ICardPreviewButtonAction {
   onButtonClick?: (event: MouseEvent) => void;
 }
 
-export class CardPreview extends Card<ICardPreviewData> {
+export class CardPreview extends CardGallery<ICardPreviewData> {
   private _descriptionElement: HTMLElement
   private _actionButton : HTMLElement | null
 

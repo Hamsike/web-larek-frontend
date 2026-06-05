@@ -235,7 +235,7 @@ interface ICardGalleryData extends ICardData {
 
 - set category(value: string) — устанавливает текст категории и динамический CSS-класс
 
-#### Класс `CardPreview` (наследует `Card<ICardPreviewData>`)
+#### Класс `CardPreview` (наследует `CardGallery<ICardPreviewData>`)
 
 **Интерфейс:**
 ```ts
