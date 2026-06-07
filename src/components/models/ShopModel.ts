@@ -23,17 +23,6 @@ export class ShopModel {
     this.events.emit('basket:updated', { basket: this.basketItems });
   }
 
-  addToCheckout(item: IProductItem): void {
-    this.checkoutData.items.push(item.id);
-  }
-
-  removeFromCheckout(item: IProductItem): void {
-    const index = this.checkoutData.items.indexOf(item.id);
-    if (index >= 0) {
-      this.checkoutData.items.splice(index, 1);
-    }
-  }
-
   updateProductList(items: IProductItem[]): void {
     this.products = items.map(item => ({ ...item }));
     this.events.emit('products:loaded', { products: this.products });
@@ -45,18 +34,23 @@ export class ShopModel {
   }
 
   canAddToBasket(id: string) {
-    return !this.basketItems.some(item => item.id === id)
+    return !this.basketItems.some(item => item.id === id);
   }
 
   addToBasket(item: IProductItem): void {
     this.basketItems.push(item);
+    this.checkoutData.items.push(item.id);
     this.events.emit('basket:updated', { basket: this.basketItems });
   }
 
   removeFromBasket(item: IProductItem): void {
-    const index = this.basketItems.findIndex(i => i.id === item.id);
-    if (index >= 0) {
-      this.basketItems.splice(index, 1);
+    const basketIndex = this.basketItems.findIndex(i => i.id === item.id);
+    if (basketIndex >= 0) {
+      this.basketItems.splice(basketIndex, 1);
+      const checkoutIndex = this.checkoutData.items.indexOf(item.id);
+      if (checkoutIndex >= 0) {
+        this.checkoutData.items.splice(checkoutIndex, 1);
+      }
       this.events.emit('basket:updated', { basket: this.basketItems });
     }
   }
@@ -85,7 +79,7 @@ export class ShopModel {
         (this.checkoutData as any)[field] = value;
       }
     }
-    this.validateCheckoutForm();
+    this.events.emit('order:changed', this.checkoutData);
   }
 
   updateContactField(field: string, value: string): void {
@@ -93,27 +87,18 @@ export class ShopModel {
     if (validFields.includes(field)) {
       (this.checkoutData as any)[field] = value;
     }
-    this.validateContactForm();
+    this.events.emit('order:changed', this.checkoutData);
   }
 
-  validateCheckoutForm(): boolean {
+  getValidationErrors(): ValidationErrors {
     const errors: ValidationErrors = {};
-
+    
     if (!this.checkoutData.address || this.checkoutData.address.trim() === '') {
       errors.address = 'Укажите адрес доставки';
     }
     if (!this.checkoutData.payment) {
       errors.payment = 'Выберите способ оплаты';
     }
-
-    this.fieldErrors = errors;
-    this.events.emit('validation:updated', this.fieldErrors);
-    return Object.keys(errors).length === 0;
-  }
-
-  validateContactForm(): boolean {
-    const errors: ValidationErrors = {};
-
     if (!this.checkoutData.email || this.checkoutData.email.trim() === '') {
       errors.email = 'Укажите email';
     }
@@ -121,9 +106,7 @@ export class ShopModel {
       errors.phone = 'Укажите телефон';
     }
 
-    this.fieldErrors = errors;
-    this.events.emit('validation:updated', this.fieldErrors);
-    return Object.keys(errors).length === 0;
+    return errors;
   }
 
   resetOrderData(): void {
@@ -132,7 +115,6 @@ export class ShopModel {
     this.checkoutData.email = '';
     this.checkoutData.phone = '';
     this.checkoutData.total = 0;
-    this.validateCheckoutForm();
-    this.validateContactForm();
+    this.events.emit('order:changed', this.checkoutData);
   }
 }

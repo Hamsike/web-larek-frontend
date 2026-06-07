@@ -135,26 +135,20 @@ type ValidationErrors = Partial<Record<keyof ICheckoutData, string>>;
 
 - checkoutData: ICheckoutData — данные заказа: адрес, способ оплаты, контакты, сумма, список id товаров
 
-- fieldErrors: ValidationErrors — объект текущих ошибок валидации
-
 **Методы:**
 - resetBasket(): void — очищает basketItems и checkoutData.items, генерирует basket:updated
 
-- resetOrderData(): void — очищает все поля checkoutData (address, payment, email, phone, total), вызывает валидацию
-
-- addToCheckout(item: IProductItem): void — добавляет id товара в checkoutData.items
-
-- removeFromCheckout(item: IProductItem): void — удаляет id товара из checkoutData.items
+- resetOrderData(): void — очищает все поля checkoutData (address, payment, email, phone, total), генерирует order:changed
 
 - updateProductList(items: IProductItem[]): void — сохраняет каталог, генерирует products:loaded
 
 - setActiveProduct(item: IProductItem): void — сохраняет activeProductId, генерирует activeProduct:changed
 
-- canAddToBasket(id: string): boolean — возвращает true, если товара ещё нет в корзине
+- canAddToBasket(id: string): boolean — возвращает true, если товара ещё нет в корзине и цена не null
 
-- addToBasket(item: IProductItem): void — добавляет товар в basketItems, генерирует basket:updated
+- addToBasket(item: IProductItem): void — добавляет товар в basketItems и checkoutData.items, генерирует basket:updated
 
-- removeFromBasket(item: IProductItem): void — удаляет товар из basketItems, генерирует basket:updated
+- removeFromBasket(item: IProductItem): void — удаляет товар из basketItems и checkoutData.items, генерирует basket:updated
 
 - isBasketEmpty(): boolean — возвращает true, если корзина пуста
 
@@ -162,13 +156,11 @@ type ValidationErrors = Partial<Record<keyof ICheckoutData, string>>;
 
 - calculateTotal(): number — вычисляет общую стоимость заказа на основе checkoutData.items и products
 
-- updateCheckoutField(field: string, value: string): void — обновляет поле в checkoutData (валидные поля: payment, address, phone, email, total), затем вызывает validateCheckoutForm()
+- updateCheckoutField(field: string, value: string): void — обновляет поле в checkoutData, генерирует order:changed
 
-- updateContactField(field: string, value: string): void — обновляет поля email/phone, затем вызывает validateContactForm()
+- updateContactField(field: string, value: string): void — обновляет поля email/phone, генерирует order:changed
 
-- validateCheckoutForm(): boolean — проверяет address и payment, заполняет fieldErrors, генерирует validation:updated, возвращает true если ошибок нет
-
-- validateContactForm(): boolean — проверяет email и phone, генерирует validation:updated
+- getValidationErrors(): ValidationErrors — возвращает объект с ошибками валидации всех полей заказа
 
 ### Компоненты представления (View)
 
@@ -526,26 +518,31 @@ interface ISuccessData {
 - set total(value: number) — устанавливает текст «Списано X синапсов»
 
 ### Событийная логика (`index.ts`)
+
 **Основные потоки:**
 
-- Загрузка товаров → api.fetchProducts() → updateProductList() → products:loaded → создание CardGallery → отрисовка каталога
+- **Загрузка товаров** → `api.fetchProducts()` → `updateProductList()` → `products:loaded` → создание `CardGallery` → отрисовка каталога
 
-- Выбор карточки → card:select → setActiveProduct() → activeProduct:changed → открытие CardPreview в модалке, проверка canAddToBasket
+- **Выбор карточки** → `card:select` → `setActiveProduct()` → `activeProduct:changed` → открытие `CardPreview` в модалке, проверка `canAddToBasket` и `!!item.price`
 
-- Добавление в корзину → card:add → addToBasket() и addToCheckout() → basket:updated → обновление счётчика и корзины
+- **Добавление в корзину** → `card:add` → `addToBasket()` (синхронно добавляет в `basketItems` и `checkoutData.items`) → `basket:updated` → обновление счётчика и корзины → закрытие модалки
 
-- Открытие корзины → basket:open → basket:updated → отображение BasketView в модалке
+- **Открытие корзины** → `basket:open` → `basket:updated` → отображение `BasketView` в модалке
 
-- Удаление из корзины → card:remove → removeFromBasket() и removeFromCheckout() → basket:updated
+- **Удаление из корзины** → `card:remove` → `removeFromBasket()` (синхронно удаляет из `basketItems` и `checkoutData.items`) → `basket:updated`
 
-- Начало оформления → checkout:start → resetOrderData() → отображение FormOrder в модалке
+- **Начало оформления** → `checkout:start` → `resetOrderData()` (генерирует `order:changed`) → отображение `FormOrder` в модалке
 
-- Валидация → изменение полей → order:change / contacts:change → updateCheckoutField() / updateContactField() → validateCheckoutForm() / validateContactForm() → validation:updated → управление активностью кнопки
+- **Изменение полей формы заказа** → `order:change` → `updateCheckoutField()` → генерирует `order:changed`
 
-- Выбор оплаты → payment:selected → сохранение payment в модели → validateCheckoutForm()
+- **Изменение полей формы контактов** → `contacts:change` → `updateContactField()` → генерирует `order:changed`
 
-- Отправка заказа → order:submit → установка total → отображение FormContacts
+- **Выбор способа оплаты** → `order:paymentChange` → `updateCheckoutField('payment', name)` → генерирует `order:changed`
 
-- Отправка контактов → contacts:submit → api.submitOrder() → отображение SuccessView → сброс корзины при закрытии
+- **Обработка `order:changed`** → обновление полей форм → получение ошибок через `getValidationErrors()` → обновление состояния валидации и кнопок
 
-- Блокировка скролла → modal:open / modal:close → управление page.locked
+- **Отправка формы заказа** → `order:submit` → установка `total` → отображение `FormContacts`
+
+- **Отправка контактов** → `contacts:submit` → `api.submitOrder()` → при успехе: отображение `SuccessView` → сброс корзины при закрытии модалки (через `onModalClose`)
+
+- **Блокировка скролла** → `modal:open` / `modal:close` → управление `page.locked`

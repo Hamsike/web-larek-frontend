@@ -9,7 +9,7 @@ import { PageLayout } from './components/view/PageLayout';
 import { ModalWindow } from './components/view/ModalWindow';
 import { BasketView } from './components/view/BasketView';
 import { SuccessView } from './components/view/SuccessView';
-import { IProductItem, ValidationErrors } from './types';
+import { IProductItem, ICheckoutData } from './types';
 import { CardPreview } from './components/view/CardPreview';
 import { CardBasket } from './components/view/CardBasket';
 import { CardGallery } from './components/view/CardGallery';
@@ -53,6 +53,22 @@ events.on('basket:updated', () => {
   });
 });
 
+events.on('order:changed', (checkoutData: ICheckoutData) => {
+  orderForm.address = checkoutData.address || '';
+  orderForm.payment = checkoutData.payment || 'card';
+  contactsForm.email = checkoutData.email || '';
+  contactsForm.phone = checkoutData.phone || '';
+  
+  const errors = appData.getValidationErrors();
+  const { address, payment, email, phone } = errors;
+  
+  orderForm.valid = !address && !payment;
+  contactsForm.valid = !email && !phone;
+  
+  orderForm.errors = [address, payment].filter(Boolean).join('; ');
+  contactsForm.errors = [phone, email].filter(Boolean).join('; ');
+});
+
 events.on('products:loaded', (data: { products: IProductItem[] }) => {
   page.catalog = data.products.map((item) => {
     const card = new CardGallery(cloneTemplate(templates.cardCatalog), {
@@ -89,8 +105,7 @@ events.on('activeProduct:changed', (item: IProductItem) => {
 });
 
 events.on('card:add', (item: IProductItem) => {
-  appData.addToCheckout(item);
-  appData.addToBasket(item);                  
+  appData.addToBasket(item);
   modal.hide();
 });
 
@@ -102,17 +117,7 @@ events.on('basket:open', () => {
 });
 
 events.on('card:remove', (item: IProductItem) => {
-  appData.removeFromBasket(item);                
-  appData.removeFromCheckout(item);
-});
-
-events.on('validation:updated', (errors: ValidationErrors) => {
-  const { email, phone, address } = errors;
-  
-  orderForm.valid = !address;
-  contactsForm.valid = !email && !phone;
-  orderForm.errors = address ? address : '';
-  contactsForm.errors = [phone, email].filter(Boolean).join('; ');
+  appData.removeFromBasket(item);
 });
 
 events.on('order:change', (data: { field: string, value: string }) => {
@@ -123,9 +128,8 @@ events.on('contacts:change', (data: { field: string, value: string }) => {
   appData.updateContactField(data.field, data.value);
 });
 
-events.on('payment:selected', (data: { name: string }) => {
-  appData.checkoutData.payment = data.name;
-  appData.validateCheckoutForm();
+events.on('order:paymentChange', (data: { name: string }) => {
+  appData.updateCheckoutField('payment', data.name);
 });
 
 events.on('order:submit', () => {
@@ -155,7 +159,6 @@ events.on('checkout:start', () => {
 events.on('contacts:submit', () => {
   api.submitOrder(appData.checkoutData)
     .then((result) => {
-      appData.resetBasket()
       const success = new SuccessView(cloneTemplate(templates.success), {
         onClick: () => {
           modal.hide();
@@ -167,6 +170,11 @@ events.on('contacts:submit', () => {
           total: result.total || appData.calculateTotal()
         })
       });
+      const onModalClose = () => {
+        appData.resetBasket();
+        events.off('modal:close', onModalClose);
+      };
+      events.on('modal:close', onModalClose);
     })
     .catch((err: Error) => {
       console.error(err);
@@ -186,4 +194,3 @@ api.fetchProducts()
   .catch((err: Error) => {
     console.error(err);
   });
-
