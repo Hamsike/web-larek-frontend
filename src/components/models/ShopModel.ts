@@ -13,7 +13,6 @@ export class ShopModel {
     phone: '',
     items: []
   };
-  fieldErrors: ValidationErrors = {};
 
   constructor(private events: IEvents) { }
 
